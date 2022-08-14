@@ -78,7 +78,7 @@ class ArsObstacleAvoidanceReactRos:
   def __init__(self):
 
     # Robot frame
-    self.robot_frame = 'robot_base_link'
+    self.robot_frame = None
 
 
     # Ctr loop freq 
