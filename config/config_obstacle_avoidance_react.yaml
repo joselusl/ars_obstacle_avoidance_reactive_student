@@ -1,0 +1,4 @@
+obstacle_avoidance_react:
+  ctr_loop_freq: 50.0
+  robot_size_radius: 1.0
+  

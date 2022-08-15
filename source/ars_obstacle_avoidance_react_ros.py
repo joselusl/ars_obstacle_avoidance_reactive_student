@@ -5,7 +5,9 @@ from numpy import *
 
 import os
 
-
+# pyyaml - https://pyyaml.org/wiki/PyYAMLDocumentation
+import yaml
+from yaml.loader import SafeLoader
 
 
 # ROS
@@ -67,6 +69,8 @@ class ArsObstacleAvoidanceReactRos:
   robot_vel_cmd_avoidance_stamped_pub = None
 
 
+  #
+  config_param_yaml_file_name = None
 
   # Obstacle avoidance reactive
   obstacle_avoidance_react = ArsObstacleAvoidanceReact()
@@ -116,9 +120,34 @@ class ArsObstacleAvoidanceReactRos:
 
     #### READING PARAMETERS ###
     
-    # TODO
+    # Config param
+    default_config_param_yaml_file_name = os.path.join(pkg_path,'config','config_obstacle_avoidance_react.yaml')
+    config_param_yaml_file_name_str = rospy.get_param('~config_param_obstacle_avoidance_react_yaml_file', default_config_param_yaml_file_name)
+    print(config_param_yaml_file_name_str)
+    self.config_param_yaml_file_name = os.path.abspath(config_param_yaml_file_name_str)
 
     ###
+
+
+    # Load config param
+    with open(self.config_param_yaml_file_name,'r') as file:
+        # The FullLoader parameter handles the conversion from YAML
+        # scalar values to Python the dictionary format
+        self.config_param = yaml.load(file, Loader=SafeLoader)['obstacle_avoidance_react']
+
+    if(self.config_param is None):
+      print("Error loading config param obstacle avoidance react")
+    else:
+      print("Config param obstacle avoidance react:")
+      print(self.config_param)
+
+
+    # Parameters
+    #
+    self.ctr_loop_freq = self.config_param['ctr_loop_freq']
+    
+    #
+    self.obstacle_avoidance_react.setConfigParameters(self.config_param['algorithm'])
 
     
     # End

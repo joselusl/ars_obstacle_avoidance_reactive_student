@@ -58,7 +58,7 @@ class ArsObstacleAvoidanceReact:
 
     # Config parameters
     # Robot size radius
-    self.robot_size_radius = 0.3
+    self.robot_size_radius = 0.0
 
 
     # Input: References
@@ -76,6 +76,14 @@ class ArsObstacleAvoidanceReact:
     self.robot_velo_ang_cmd_avoid = np.zeros((1,), dtype=float)
 
     # End
+    return
+
+
+  def setConfigParameters(self, config_param):
+
+    # Robot size radius
+    self.robot_size_radius = config_param['robot_size_radius']
+
     return
 
 
