@@ -24,7 +24,10 @@ def main():
   try:
     ars_obstacle_avoidance_react_ros.run()
   except rospy.ROSInterruptException:
+    ars_obstacle_avoidance_react_ros.stop()
     pass
+
+  ars_obstacle_avoidance_react_ros.close()
 
 
   return 0
