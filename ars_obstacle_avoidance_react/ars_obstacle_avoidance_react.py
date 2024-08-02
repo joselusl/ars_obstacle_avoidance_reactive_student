@@ -1,16 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import numpy as np
 from numpy import *
-
 import math
-
-import os
+import sys
 
 
 # ROS
-
-import rospy
+import rclpy
+from rclpy.time import Time
 
 import visualization_msgs.msg
 from visualization_msgs.msg import Marker
@@ -18,9 +16,7 @@ from visualization_msgs.msg import MarkerArray
 
 
 #
-import ars_lib_helpers
-
-
+import ars_lib_helpers.ars_lib_helpers as ars_lib_helpers
 
 
 
@@ -35,7 +31,7 @@ class ArsObstacleAvoidanceReact:
 
   # Input: References
   flag_set_robot_velo_cmd_raw = False
-  robot_velo_cmd_raw_time_stamp = rospy.Time(0.0, 0.0)
+  robot_velo_cmd_raw_time_stamp = Time()
   robot_velo_lin_cmd_raw = None
   robot_velo_ang_cmd_raw = None
 
@@ -45,7 +41,7 @@ class ArsObstacleAvoidanceReact:
 
 
   # Output: Commands
-  robot_velo_cmd_avoid_time_stamp = rospy.Time(0.0, 0.0)
+  robot_velo_cmd_avoid_time_stamp = Time()
   robot_velo_lin_cmd_avoid = None
   robot_velo_ang_cmd_avoid = None
   
@@ -58,12 +54,11 @@ class ArsObstacleAvoidanceReact:
 
     # Config parameters
     # Robot size radius
-    self.robot_size_radius = 0.0
-
+    self.robot_size_radius = 0.3
 
     # Input: References
     self.flag_set_robot_velo_cmd_raw = False
-    self.robot_velo_cmd_raw_time_stamp = rospy.Time(0.0, 0.0)
+    self.robot_velo_cmd_raw_time_stamp = Time()
     self.robot_velo_lin_cmd_raw = None
     self.robot_velo_ang_cmd_raw = None
 
@@ -71,7 +66,7 @@ class ArsObstacleAvoidanceReact:
     self.obstacles_detected_msg = MarkerArray()
 
     # Output: Commands
-    self.robot_velo_cmd_avoid_time_stamp = rospy.Time(0.0, 0.0)
+    self.robot_velo_cmd_avoid_time_stamp = Time()
     self.robot_velo_lin_cmd_avoid = np.zeros((3,), dtype=float)
     self.robot_velo_ang_cmd_avoid = np.zeros((1,), dtype=float)
 

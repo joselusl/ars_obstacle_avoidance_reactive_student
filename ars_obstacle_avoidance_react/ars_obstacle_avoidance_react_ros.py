@@ -5,16 +5,19 @@ from numpy import *
 
 import os
 
+import time
+
 # pyyaml - https://pyyaml.org/wiki/PyYAMLDocumentation
 import yaml
 from yaml.loader import SafeLoader
 
 
 # ROS
+import rclpy
+from rclpy.node import Node
+from rclpy.time import Time
 
-import rospy
-
-import rospkg
+from ament_index_python.packages import get_package_share_directory
 
 from std_msgs.msg import Header
 
@@ -28,20 +31,17 @@ from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 
 
-
+#
+import ars_lib_helpers.ars_lib_helpers as ars_lib_helpers
 
 #
-from ars_obstacle_avoidance_react import *
-
-
-#
-import ars_lib_helpers
+from ars_obstacle_avoidance_react.ars_obstacle_avoidance_react import *
 
 
 
 
 
-class ArsObstacleAvoidanceReactRos:
+class ArsObstacleAvoidanceReactRos(Node):
 
   #######
 
@@ -80,10 +80,13 @@ class ArsObstacleAvoidanceReactRos:
 
   #########
 
-  def __init__(self):
+  def __init__(self, node_name='ars_obstacle_avoidance_react_node'):
+
+    # Init ROS
+    super().__init__(node_name)
 
     # Robot frame
-    self.robot_frame = None
+    self.robot_frame = ""
 
 
     # Ctr loop freq 
@@ -105,45 +108,49 @@ class ArsObstacleAvoidanceReactRos:
     self.robot_vel_cmd_avoidance_stamped_pub = None
 
     #
+    self.__init(node_name)
+
+    #
     return
 
 
-  def init(self, node_name='ars_obstacle_avoidance_react_node'):
-    #
-
-    # Init ROS
-    rospy.init_node(node_name, anonymous=True)
-
-    #
-    rospy.on_shutdown(self.stop)
-
-    
+  def __init(self, node_name='ars_obstacle_avoidance_react_node'):
+        
     # Package path
-    pkg_path = rospkg.RosPack().get_path('ars_obstacle_avoidance_react')
+    try:
+      pkg_path = get_package_share_directory('ars_obstacle_avoidance_react')
+      self.get_logger().info(f"The path to the package is: {pkg_path}")
+    except ModuleNotFoundError:
+      self.get_logger().info("Package not found")
+    
     
 
     #### READING PARAMETERS ###
     
     # Config param
     default_config_param_yaml_file_name = os.path.join(pkg_path,'config','config_obstacle_avoidance_react.yaml')
-    config_param_yaml_file_name_str = rospy.get_param('~config_param_obstacle_avoidance_react_yaml_file', default_config_param_yaml_file_name)
-    print(config_param_yaml_file_name_str)
-    self.config_param_yaml_file_name = os.path.abspath(config_param_yaml_file_name_str)
+    # Declare the parameter with a default value
+    self.declare_parameter('config_param_obstacle_avoidance_react_yaml_file', default_config_param_yaml_file_name)
+    # Get the parameter value
+    config_param_yaml_file_name_str = self.get_parameter('config_param_obstacle_avoidance_react_yaml_file').get_parameter_value().string_value
+    self.get_logger().info(config_param_yaml_file_name_str)
+    #
+    self.sim_obstacles_detector_params_yaml_file_name = os.path.abspath(config_param_yaml_file_name_str)
 
     ###
 
 
     # Load config param
-    with open(self.config_param_yaml_file_name,'r') as file:
+    with open(self.sim_obstacles_detector_params_yaml_file_name,'r') as file:
         # The FullLoader parameter handles the conversion from YAML
         # scalar values to Python the dictionary format
         self.config_param = yaml.load(file, Loader=SafeLoader)['obstacle_avoidance_react']
 
     if(self.config_param is None):
-      print("Error loading config param obstacle avoidance react")
+      self.get_logger().info("Error loading config param obstacle avoidance react")
     else:
-      print("Config param obstacle avoidance react:")
-      print(self.config_param)
+      self.get_logger().info("Config param obstacle avoidance react:")
+      self.get_logger().info(str(self.config_param))
 
 
     # Parameters
@@ -162,19 +169,19 @@ class ArsObstacleAvoidanceReactRos:
 
     # Subscriber
     #
-    self.robot_vel_cmd_raw_stamped_sub = rospy.Subscriber('robot_cmd_raw_stamped', TwistStamped, self.robotVelCmdRawStampedCallback)
+    self.robot_vel_cmd_raw_stamped_sub = self.create_subscription(TwistStamped, 'robot_cmd_raw_stamped', self.robotVelCmdRawStampedCallback, qos_profile=10)
     #
-    self.obstacles_detected_sub = rospy.Subscriber('obstacles_detected', MarkerArray, self.obstaclesDetectedCallback)
+    self.obstacles_detected_sub = self.create_subscription(MarkerArray, 'obstacles_detected', self.obstaclesDetectedCallback, qos_profile=10)
     
 
     # Publisher
     # Robot cmd stamped
-    self.robot_vel_cmd_avoidance_stamped_pub = rospy.Publisher('robot_cmd_avoidance_stamped', TwistStamped, queue_size=1)
+    self.robot_vel_cmd_avoidance_stamped_pub = self.create_publisher(TwistStamped, 'robot_cmd_avoidance_stamped', qos_profile=10)
 
 
     # Timers
     #
-    self.ctr_loop_timer = rospy.Timer(rospy.Duration(1.0/self.ctr_loop_freq), self.ctrLoopTimerCallback)
+    self.ctr_loop_timer = self.create_timer(1.0/self.ctr_loop_freq, self.ctrLoopTimerCallback)
 
 
     # End
@@ -183,7 +190,7 @@ class ArsObstacleAvoidanceReactRos:
 
   def run(self):
 
-    rospy.spin()
+    rclpy.spin(self)
 
     return
 
@@ -191,10 +198,10 @@ class ArsObstacleAvoidanceReactRos:
   def stop(self):
 
     # Sleep to allow time to finish
-    rospy.sleep(0.5)
+    time.sleep(0.5)
 
     #
-    self.publishEmptyCmd(rospy.Time().now())
+    self.publishEmptyCmd(self.get_clock().now())
 
     #
     return
@@ -207,7 +214,7 @@ class ArsObstacleAvoidanceReactRos:
     return
 
 
-  def publishEmptyCmd(self, time_stamp=rospy.Time):
+  def publishEmptyCmd(self, time_stamp=Time()):
 
     #
     robot_velo_cmd_stamped_msg = TwistStamped()
@@ -236,7 +243,10 @@ class ArsObstacleAvoidanceReactRos:
     robot_velo_cmd_raw_time_stamp = robot_vel_cmd_raw_stamped_msg.header.stamp
 
     # Baselink
-    self.robot_frame = robot_vel_cmd_raw_stamped_msg.header.frame_id
+    robot_frame = robot_vel_cmd_raw_stamped_msg.header.frame_id
+    if not isinstance(robot_frame, str):
+      robot_frame = str(robot_frame)
+    self.robot_frame = robot_frame
 
     # Linear
     lin_vel_cmd_raw_ref = np.zeros((3,), dtype=float)
@@ -274,7 +284,7 @@ class ArsObstacleAvoidanceReactRos:
     #
     robot_velo_cmd_stamped_msg = TwistStamped()
 
-    robot_velo_cmd_stamped_msg.header.stamp = robot_velo_cmd_time_stamp
+    robot_velo_cmd_stamped_msg.header.stamp = robot_velo_cmd_time_stamp.to_msg()
     robot_velo_cmd_stamped_msg.header.frame_id = self.robot_frame
 
     robot_velo_cmd_stamped_msg.twist.linear.x = robot_velo_lin_cmd[0]
@@ -293,10 +303,10 @@ class ArsObstacleAvoidanceReactRos:
     return
 
 
-  def ctrLoopTimerCallback(self, timer_msg):
+  def ctrLoopTimerCallback(self):
 
     # Get time
-    time_stamp_current = rospy.Time.now()
+    time_stamp_current = self.get_clock().now()
 
     #
     self.obstacle_avoidance_react.ctrLoopObstacleAvoidanceReact(time_stamp_current)
